@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Цалингийн задаргаа — UBCab Express</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#eef1f6;
+    --ink:#1c2733;
+    --muted:#6b7684;
+    --line:#e1e5eb;
+    --card:#ffffff;
+    --blue:#1a56c4;
+    --blue-deep:#123a86;
+    --green:#1f8a4c;
+    --gold:#b8863a;
+    --warn:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;
+    line-height:1.4;
+  }
+  h1,h2,h3,h4{margin:0;}
+
+  /* ---------- Login ---------- */
+  #login-screen{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .login-box{width:100%; max-width:380px; background:var(--card); border-radius:14px; box-shadow:0 4px 24px rgba(20,40,80,.08); padding:40px 36px;}
+  .login-mark{font-size:13px; letter-spacing:.08em; color:var(--blue); margin-bottom:6px; font-weight:600;}
+  .login-box h1{font-size:24px; color:var(--blue-deep); margin-bottom:4px;}
+  .login-sub{font-size:13.5px; color:var(--muted); margin-bottom:28px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px;}
+  .field input{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px; background:#fafbfc; font-size:14.5px; color:var(--ink);}
+  .field input:focus{outline:none; border-color:var(--blue);}
+  .btn{width:100%; padding:12px; background:var(--blue-deep); color:#fff; border:none; border-radius:8px; font-size:14.5px; cursor:pointer;}
+  .btn:hover{background:var(--blue);}
+  .login-error{font-size:13px; color:var(--warn); margin-top:14px; min-height:18px;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none; min-height:100vh; padding:24px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+
+  .banner{
+    background:linear-gradient(135deg,var(--blue-deep),var(--blue));
+    border-radius:16px;
+    color:#fff;
+    padding:26px 32px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    margin-bottom:20px;
+  }
+  .banner h1{font-size:22px; margin-bottom:6px;}
+  .banner .sub{font-size:13px; opacity:.8; max-width:640px;}
+  .banner .actions{display:flex; gap:10px;}
+  .banner button{
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff;
+    padding:9px 16px; border-radius:20px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .banner button:hover{background:rgba(255,255,255,.24);}
+
+  /* ---------- Pills ---------- */
+  .pills{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;}
+  .pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:8px 16px; font-size:13px; color:var(--muted); cursor:pointer;
+  }
+  .pill .dot{width:7px; height:7px; border-radius:50%; background:#9aa5b3;}
+  .pill.active{background:var(--blue-deep); color:#fff; border-color:var(--blue-deep);}
+  .pill.active .dot{background:#fff;}
+
+  /* ---------- KPI cards ---------- */
+  .kpi-row{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px;}
+  .kpi-card{
+    background:var(--card); border-radius:10px; border:1px solid var(--line);
+    border-top:3px solid var(--blue); padding:16px 18px;
+  }
+  .kpi-card.green{border-top-color:var(--green);}
+  .kpi-card.gold{border-top-color:var(--gold);}
+  .kpi-card .label{font-size:11px; letter-spacing:.03em; color:var(--muted); font-weight:600; margin-bottom:8px;}
+  .kpi-card .value{font-size:21px; color:var(--ink); font-weight:700;}
+  .kpi-card .note{font-size:11.5px; color:var(--muted); margin-top:4px;}
+
+  /* ---------- Tabs ---------- */
+  .view-tabs{display:flex; gap:6px; margin-bottom:18px;}
+  .view-tab{
+    padding:9px 18px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--muted);
+    background:var(--card); border:1px solid var(--line);
+  }
+  .view-tab.active{background:var(--blue-deep); color:#fff; border-color:var(--blue-deep);}
+  .view-panel{display:none;}
+  .view-panel.active{display:block;}
+
+  /* ---------- Category panels (grid) ---------- */
+  .panels{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .panels.single{grid-template-columns:1fr;}
+  .panel{
+    background:var(--card); border-radius:12px; border:1px solid var(--line); overflow:hidden;
+  }
+  .panel-head{display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line);}
+  .panel-tag{font-size:10.5px; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:5px;}
+  .panel-tag.add{background:#e3f0e6; color:var(--green);}
+  .panel-tag.sub{background:#fbe7e4; color:var(--warn);}
+  .panel-head h3{font-size:13.5px; color:var(--ink); font-weight:600;}
+  .panel-body{padding:18px 20px 20px;}
+  .cat-block{margin-bottom:20px; overflow-x:auto;}
+  .cat-block:last-child{margin-bottom:0;}
+  .cat-title{font-size:11px; font-weight:700; color:var(--blue); letter-spacing:.03em; margin-bottom:10px;}
+  table.cmp{width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed;}
+  table.cmp th{
+    text-align:right; padding:8px 10px; color:var(--muted); font-size:10.5px; font-weight:700;
+    letter-spacing:.02em; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  table.cmp th:first-child{text-align:left;}
+  table.cmp td{padding:8px 10px; border-bottom:1px solid #f0f2f5; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  table.cmp td:first-child{text-align:left; color:var(--ink);}
+  table.cmp td.deduct{color:var(--warn);}
+  table.cmp tr.total td{font-weight:700; border-top:1px solid var(--line); border-bottom:none;}
+  table.cmp tr.total td.deduct{color:var(--warn);}
+  table.cmp tr.group-sep td{
+    padding-top:16px; padding-bottom:6px; border-bottom:1px solid var(--line);
+    font-size:11px; font-weight:700; color:var(--blue); letter-spacing:.03em; text-align:left;
+  }
+  table.cmp tr.net-row td{
+    font-weight:700; border-top:2px solid var(--blue-deep); border-bottom:none; padding-top:12px;
+    color:var(--blue-deep); font-size:14px;
+  }
+  table.cmp th.sub-total-col, table.cmp td.sub-total-col{
+    background:#f6f8fb; font-weight:600; border-left:2px solid var(--blue-deep);
+  }
+
+  .empty-state{text-align:center; color:var(--muted); padding:60px 20px;}
+
+  /* ---------- Total table ---------- */
+  table.totals{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:13.5px;}
+  table.totals th{text-align:right; padding:12px 14px; background:#f6f8fb; color:var(--muted); font-size:11px; font-weight:700; border-bottom:1px solid var(--line); white-space:nowrap;}
+  table.totals th:first-child, table.totals td:first-child{text-align:left;}
+  table.totals td{padding:12px 14px; border-bottom:1px solid #eef1f5; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  table.totals td.deduct{color:var(--warn);}
+  table.totals td.net{color:var(--blue-deep); font-weight:700;}
+  table.totals tr.grand td{border-top:2px solid var(--blue-deep); border-bottom:none; font-weight:700; padding-top:14px;}
+  table.totals tr.grand td.net{color:var(--gold); font-size:15px;}
+  .totals-wrap{overflow-x:auto;}
+
+  footer.foot{max-width:1180px; margin:24px auto 0; padding:0 8px; font-size:11.5px; color:#9aa5a1;}
+
+  /* ---------- Accountant panel ---------- */
+  .role-switch{display:flex; gap:0; margin-bottom:20px; border:1px solid var(--line); border-radius:8px; overflow:hidden; width:fit-content;}
+  .role-switch button{
+    padding:9px 18px; border:none; background:var(--card); color:var(--muted); font-size:13px; cursor:pointer;
+  }
+  .role-switch button.active{background:var(--blue-deep); color:#fff;}
+
+  .acct-card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:18px;}
+  .acct-card h3{font-size:14px; color:var(--blue-deep); margin-bottom:14px;}
+  .acct-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .acct-field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .acct-field input{width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:#fafbfc; font-size:13.5px; color:var(--ink);}
+  .acct-field input:focus{outline:none; border-color:var(--blue);}
+  .acct-note{font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.5;}
+  .acct-actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px;}
+  .acct-btn{padding:10px 20px; border-radius:8px; border:none; font-size:13px; cursor:pointer; background:var(--blue-deep); color:#fff;}
+  .acct-btn:hover{background:var(--blue);}
+  .acct-btn.secondary{background:#fff; color:var(--blue-deep); border:1px solid var(--blue-deep);}
+  .acct-btn:disabled{background:#c7ccd3; cursor:not-allowed;}
+
+  .acct-status{font-size:13px; margin-top:14px; padding:10px 14px; border-radius:8px; display:none;}
+  .acct-status.show{display:block;}
+  .acct-status.ok{background:#e3f0e6; color:var(--green);}
+  .acct-status.err{background:#fbe7e4; color:var(--warn);}
+  .acct-status.info{background:#eaf1fc; color:var(--blue-deep);}
+
+  table.preview{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px;}
+  table.preview th{background:#f6f8fb; color:var(--muted); font-size:10.5px; font-weight:700; padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap;}
+  table.preview td{padding:8px 10px; border-bottom:1px solid #eef1f5; white-space:nowrap;}
+  table.preview tr.no-match td{color:var(--warn);}
+  .preview-wrap{overflow-x:auto; max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;}
+
+  @media (max-width:1000px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .panels{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    #app{padding:14px;}
+    .banner{flex-direction:column; gap:14px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-mark">UBCAB EXPRESS</div>
+    <h1>Цалингийн задаргаа</h1>
+    <div class="login-sub">Өөрийн цалингийн дэлгэрэнгүй бүрдэлийг харах</div>
+    <div class="field">
+      <label for="loginUser">Ажилтны нэвтрэх нэр</label>
+      <input id="loginUser" type="text" autocomplete="username" placeholder="ж: amartaivan">
+    </div>
+    <div class="field">
+      <label for="loginPass">Нууц үг</label>
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" id="loginBtn" onclick="attemptLogin()">Нэвтрэх</button>
+    <div class="login-error" id="loginError"></div>
+    <div id="appVersion" style="margin-top:14px; font-size:11px; color:#9aa5a1; text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="wrap">
+
+    <div class="banner">
+      <div>
+        <h1 id="bannerTitle">Цалингийн задаргаа</h1>
+        <div class="sub" id="bannerSub">Мэдээлэл сар бүр автоматаар шинэчлэгдэнэ · Ангилалаар шүүж дэлгэрэнгүй харна уу</div>
+      </div>
+      <div class="actions">
+        <button onclick="refreshData()">Шинэчлэх</button>
+        <button onclick="logout()">Гарах</button>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="view-tabs">
+      <button class="view-tab active" id="tabMonths" onclick="switchView('months')">Сараар</button>
+      <button class="view-tab" id="tabTotal" onclick="switchView('total')">Нийт дүн</button>
+    </div>
+
+    <div class="view-panel active" id="panelMonthsView">
+      <div class="pills" id="granularityRow" style="margin-bottom:10px;"></div>
+      <div class="pills" id="pillsRow"></div>
+      <div class="panels" id="panelsRow"></div>
+    </div>
+
+    <div class="view-panel" id="panelTotalView">
+      <div class="totals-wrap">
+        <table class="totals" id="totalsTable"></table>
+      </div>
+      <div id="totalsDetail" style="margin-top:22px;"></div>
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      Одоогоор цалингийн мэдээлэл ирээгүй байна.
+    </div>
+
+    <footer class="foot" id="syncNote">—</footer>
+  </div>
+</div>
+
+<!-- ============ ACCOUNTANT APP ============ -->
+<div id="accountantApp" style="display:none; min-height:100vh; padding:24px;">
+  <div class="wrap">
+    <div class="banner">
+      <div>
+        <h1>Нягтлан бодогчийн самбар</h1>
+        <div class="sub">Excel файл оруулж, шинэ сарын цалингийн мэдээллийг Gist рүү шинэчилнэ</div>
+      </div>
+      <div class="actions">
+        <button onclick="logout()">Гарах</button>
+      </div>
+    </div>
+
+    <div class="acct-card">
+      <h3>1. Gist тохиргоо</h3>
+      <div class="acct-grid">
+        <div class="acct-field">
+          <label>Gist ID</label>
+          <input id="gistIdInput" type="text" placeholder="жиш: 3f6a1b2c9d8e7f0a1b2c3d4e5f6a7b8c">
+        </div>
+        <div class="acct-field">
+          <label>Файлын нэр (Gist доторх)</label>
+          <input id="gistFilenameInput" type="text" placeholder="жиш: salary_data.json">
+        </div>
+        <div class="acct-field" style="grid-column:1 / -1;">
+          <label>GitHub Personal Access Token (зөвхөн энэ сессэд ашиглагдана, хадгалагдахгүй)</label>
+          <input id="githubTokenInput" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        </div>
+      </div>
+      <div class="acct-note">
+        Token-д тухайн Gist-ийг унших/бичих эрх ("gist" scope) хэрэгтэй. Token хаана ч хадгалагдахгүй,
+        зөвхөн энэ хуудсыг сэргээх/хаах хүртэл санах ойд байна.
+      </div>
+    </div>
+
+    <div class="acct-card">
+      <h3>2. Excel оруулах (нэг сар эсвэл олон сар)</h3>
+      <div class="acct-grid">
+        <div class="acct-field">
+          <label>Сарын нэр — зөвхөн 1 sheet-тэй файлд ашиглагдана (жиш: 10-р сар)</label>
+          <input id="monthLabelInput" type="text" placeholder="10-р сар">
+        </div>
+        <div class="acct-field">
+          <label>Excel файл (.xlsx)</label>
+          <input id="excelFileInput" type="file" accept=".xlsx,.xls">
+        </div>
+      </div>
+      <div class="acct-note">
+        Хэрэв танд олон сарын мэдээлэл нэг дор байгаа бол: Excel файлдаа сар бүрийг тусдаа <b>sheet (доод табууд)</b> болгож,
+        sheet бүрийн нэрийг сарын нэрээр (жиш: "7-р сар", "8-р сар", "9-р сар") нэрлээд upload хийнэ үү.
+        Апп бүх sheet-ийг тус тусад нь тухайн сарын мэдээлэл гэж таньж, нэг дор Gist рүү шинэчилнэ.
+        Ганц sheet-тэй файлд дээрх "Сарын нэр" талбар хэрэглэгдэнэ.
+      </div>
+      <div class="acct-actions">
+        <button class="acct-btn secondary" onclick="parseExcelFile()">Файлыг унших</button>
+        <button class="acct-btn" id="pushBtn" onclick="pushToGist()" disabled>Gist рүү шинэчлэх</button>
+      </div>
+      <div class="acct-status" id="acctStatus"></div>
+    </div>
+
+    <div class="acct-card">
+      <h3>3. Ажилтан удирдах</h3>
+      <div class="acct-note">
+        Энд ажилтан нэмэх, хасах (идэвхгүй болгох), нууц үг тохируулах боломжтой. Өөрчлөлт хийхийн тулд дээрх
+        "1. Gist тохиргоо" хэсэгт Gist ID болон GitHub Token-ыг оруулсан байх шаардлагатай.
+      </div>
+      <div class="acct-actions">
+        <button class="acct-btn secondary" onclick="loadEmployeeManager()">Ажилтдын жагсаалт ачаалах</button>
+        <button class="acct-btn secondary" onclick="autofillMissingPasswords()">Дутуу нууц үгсийг санал болгож бөглөх</button>
+        <button class="acct-btn secondary" onclick="randomizeAllPasswords()">Бүх ажилтанд санамсаргүй нууц үг үүсгэх</button>
+        <button class="acct-btn secondary" onclick="downloadPasswordList()">Нууц үгийн жагсаалт татах (CSV)</button>
+      </div>
+      <div class="preview-wrap" id="empManagerWrap" style="display:none; margin-top:14px;">
+        <table class="preview" id="empManagerTable"></table>
+      </div>
+
+      <div class="acct-card" id="addEmployeeCard" style="display:none; margin-top:16px; box-shadow:none;">
+        <h3 style="font-size:13px;">+ Шинэ ажилтан нэмэх</h3>
+        <div class="acct-grid">
+          <div class="acct-field"><label>Нэвтрэх нэр (латинаар)</label><input id="newEmpUsername" type="text" placeholder="ж: bnaran"></div>
+          <div class="acct-field"><label>Нууц үг</label><input id="newEmpPassword" type="text" placeholder="эхний нууц үг"></div>
+          <div class="acct-field"><label>Овог</label><input id="newEmpLastName" type="text"></div>
+          <div class="acct-field"><label>Нэр</label><input id="newEmpFirstName" type="text"></div>
+          <div class="acct-field"><label>Регистрийн дугаар</label><input id="newEmpReg" type="text"></div>
+          <div class="acct-field"><label>Албан тушаал</label><input id="newEmpPosition" type="text"></div>
+          <div class="acct-field"><label>Дансны мэдээлэл</label><input id="newEmpAccount" type="text"></div>
+          <div class="acct-field"><label>Үндсэн цалин</label><input id="newEmpBaseSalary" type="number"></div>
+        </div>
+        <div class="acct-actions">
+          <button class="acct-btn secondary" onclick="addEmployeeDraft()">Жагсаалтад нэмэх (түр)</button>
+        </div>
+      </div>
+
+      <div class="acct-actions" id="empManagerSaveRow" style="display:none; margin-top:14px;">
+        <button class="acct-btn" onclick="saveEmployeeDirectory()">Бүх өөрчлөлтийг Gist рүү хадгалах</button>
+      </div>
+      <div class="acct-status" id="empManagerStatus"></div>
+    </div>
+
+    <div class="acct-card" id="previewCard" style="display:none;">
+      <h3>4. Уншсан мэдээллийг шалгах</h3>
+      <div class="preview-wrap">
+        <table class="preview" id="previewTable"></table>
+      </div>
+    </div>
+
+    <div class="acct-card">
+      <h3>5. Сарын өгөгдөл засах (ажилласан хугацааны цалин ↔ илүү цагийн цалин)</h3>
+      <div class="acct-note">
+        Тухайн сарын "Ажилласан хугацааны цалин" 0 болж, тэр дүн нь "Илүү цагийн цалин" руу орчихсон бол энд засна.
+        Зөвхөн ажилласан хугацааны цалин = 0, илүү цагийн цалин &gt; 0, илүү цагийн цаг = 0 байгаа мөрийг л
+        автоматаар зөөнө; илүү цаг нь бодитоор байгаа мөрийг гар хүрэлгүй жагсаалтад тусад нь харуулна.
+      </div>
+      <div class="acct-grid">
+        <div class="acct-field">
+          <label>Засах саруудын нэр (таслалаар тусгаарла)</label>
+          <input id="repairMonthsInput" type="text" value="1-р сар, 2-р сар">
+        </div>
+      </div>
+      <div class="acct-actions">
+        <button class="acct-btn secondary" onclick="planMonthRepair()">Шалгах (өөрчлөхгүй)</button>
+        <button class="acct-btn" id="repairApplyBtn" onclick="applyMonthRepair()" disabled>Засаад Gist рүү хадгалах</button>
+      </div>
+      <div class="preview-wrap" id="repairPreviewWrap" style="display:none; margin-top:14px;">
+        <table class="preview" id="repairPreviewTable"></table>
+      </div>
+      <div class="acct-status" id="repairStatus"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   ТОХИРГОО (CONFIG)
+   GIST_RAW_URL — нягтлан бодогчийн JSON export-той Gist Raw URL (commit hash-гүй)
+   Ажилтны нэвтрэх нэр/нууц үг одоо энэ Gist-ийн дотор (employees.<username>.password) хадгалагдана —
+   Нягтлан бодогчийн самбар дахь "Ажилтан удирдах" хэсгээр нэмэх/хасах/солих боломжтой.
+   ========================================================================= */
+  const APP_VERSION = 'v2026.10.05-b (сар эрэмбэлэх засвар)';
+  const CONFIG = {
+    GIST_RAW_URL: "https://gist.githubusercontent.com/donidinoguree-bot/0620f614a576dd761cb237c2e4979b0f/raw/salary_data.json",
+    GIST_ID: "0620f614a576dd761cb237c2e4979b0f",
+    GIST_FILENAME: "salary_data.json",
+  };
+
+  const ACCOUNTANTS = [
+    { username: "badamjunai", password: "ub2026-acc", name: "Бадамжунай (нягтлан бодогч)" },
+  ];
+
+  const fmt = n => Math.round(n || 0).toLocaleString('mn-MN') + '₮';
+  const fmtH = n => (n === undefined || n === null) ? '—' : (Math.round(n*10)/10).toLocaleString('mn-MN') + ' ц';
+  // Нийт олгосон цалин = гарт олгох дүн (netPay) + сарын дундуур олгосон урьдчилгаа
+  const getTotalPaid = obj => (obj.netPay || 0) + ((obj.deductions && obj.deductions.advance) || 0);
+
+  // Ангилал бүрийн зүйлсийн жагсаалт (харагдах нэр, түлхүүр, нэгж, тал)
+  const CATEGORY_DEFS = [
+    { key:'time', side:'left', label:'ЦАГ БҮРТГЭЛ', unit:'hours', fields:[
+        ['requiredHours','Ажиллах зохих цаг'],
+        ['workedHours','Ажилласан цаг'],
+        ['overtimeHours','Илүү цаг'],
+        ['holidayWorkedHours','Баяр ёслол ажилласан'],
+        ['paidLeaveHours','Цалинтай чөлөө'],
+    ]},
+    { key:'calc', side:'left', label:'ЦАЛИНГИЙН ТООЦООЛОЛ', unit:'money', fields:[
+        ['workedTimePay','Ажилласан хугацааны цалин'],
+        ['overtimePay','Илүү цагийн цалин'],
+        ['holidayPay','Баяр ёслол'],
+        ['annualLeavePay','Ээлжийн амралт'],
+        ['bonusPay','Бонус цалин'],
+        ['mealAllowance','Хоолны нэмэгдэл'],
+        ['mealDeduction','Хоол хасагдах дүн'],
+        ['otherAdditionalPay','Бусад нэмэгдэл'],
+        ['differencePay','Зөрүү цалин'],
+        ['totalCalculatedPay','Нийт бодогдсон цалин'],
+    ]},
+    { key:'deduct', side:'right', label:'ТАТВАР СУУТГАЛ', unit:'money', fields:[
+        ['socialInsuranceEmployee','НДШ 11.5%'],
+        ['taxableIncome','Татвар тооцох орлого'],
+        ['incomeTax','ХАОАТ'],
+        ['mealDeduction','Хоол суутгал'],
+        ['advance','Урьдчилгаа'],
+        ['savingsTransfer','Хуримтлал шилжүүлэг'],
+        ['totalDeductions','Нийт суутгал'],
+    ]},
+    { key:'other', side:'right', label:'БУСАД', unit:'money', fields:[
+        ['temporaryDisabilityBenefit','ХЧТА тэтгэмж'],
+        ['closingSalary','Хаах цалин'],
+        ['receivable','Авлага'],
+        ['food','Хоол'],
+    ]},
+  ];
+  const CATEGORY_SOURCE = { time:'timeTracking', calc:'calculation', deduct:'deductions', other:'other' };
+
+  const SAMPLE_DATA = {
+    updatedAt: "жишээ өгөгдөл",
+    employees: {
+      amartaivan: {
+        registerNumber: "УБ00000000", password: "demo123", active: true, lastName: "Пунцаг", firstName: "Амартайван",
+        position: "Борлуулалтын менежер", accountInfo: "Хаан банк ****1234",
+        baseSalaryRate: 1500000, avgWage: 1480000,
+        months: [
+          {
+            label: "9-р сар",
+            timeTracking: { requiredHours:176, workedHours:176, overtimeHours:6, holidayWorkedHours:0, paidLeaveHours:8 },
+            calculation: { workedTimePay:1500000, overtimePay:51136, holidayPay:0, annualLeavePay:0, bonusPay:180000, mealAllowance:120000, mealDeduction:90000, otherAdditionalPay:0, differencePay:0, totalCalculatedPay:1761136 },
+            deductions: { socialInsuranceEmployee:202531, taxableIncome:1558605, incomeTax:155860, mealDeduction:90000, advance:200000, savingsTransfer:0, totalDeductions:648391 },
+            other: { companySocialInsurance:220142, temporaryDisabilityBenefit:0, closingSalary:0, receivable:0, food:90000 },
+            netPay: 1112745
+          },
+          {
+            label: "8-р сар",
+            timeTracking: { requiredHours:184, workedHours:184, overtimeHours:0, holidayWorkedHours:0, paidLeaveHours:0 },
+            calculation: { workedTimePay:1500000, overtimePay:0, holidayPay:0, annualLeavePay:0, bonusPay:0, mealAllowance:120000, mealDeduction:90000, otherAdditionalPay:0, differencePay:0, totalCalculatedPay:1530000 },
+            deductions: { socialInsuranceEmployee:175950, taxableIncome:1354050, incomeTax:135405, mealDeduction:90000, advance:0, savingsTransfer:0, totalDeductions:401355 },
+            other: { companySocialInsurance:191250, temporaryDisabilityBenefit:0, closingSalary:0, receivable:0, food:90000 },
+            netPay: 1128645
+          },
+          {
+            label: "7-р сар",
+            timeTracking: { requiredHours:184, workedHours:180, overtimeHours:0, holidayWorkedHours:0, paidLeaveHours:4 },
+            calculation: { workedTimePay:1450000, overtimePay:0, holidayPay:0, annualLeavePay:0, bonusPay:0, mealAllowance:120000, mealDeduction:90000, otherAdditionalPay:0, differencePay:0, totalCalculatedPay:1480000 },
+            deductions: { socialInsuranceEmployee:170200, taxableIncome:1309800, incomeTax:130980, mealDeduction:90000, advance:0, savingsTransfer:0, totalDeductions:391180 },
+            other: { companySocialInsurance:185000, temporaryDisabilityBenefit:0, closingSalary:0, receivable:0, food:90000 },
+            netPay: 1088820
+          }
+        ]
+      },
+      munkhbileg: {
+        registerNumber: "УБ00000001", password: "demo123", active: true, lastName: "Ганбат", firstName: "Мөнхбилэг",
+        position: "Борлуулалтын ажилтан", accountInfo: "Голомт банк ****5678",
+        baseSalaryRate: 1350000, avgWage: 1340000,
+        months: [
+          {
+            label: "9-р сар",
+            timeTracking: { requiredHours:176, workedHours:168, overtimeHours:0, holidayWorkedHours:0, paidLeaveHours:8 },
+            calculation: { workedTimePay:1350000, overtimePay:0, holidayPay:0, annualLeavePay:0, bonusPay:0, mealAllowance:120000, mealDeduction:90000, otherAdditionalPay:0, differencePay:0, totalCalculatedPay:1380000 },
+            deductions: { socialInsuranceEmployee:158550, taxableIncome:1221450, incomeTax:122145, mealDeduction:90000, advance:100000, savingsTransfer:0, totalDeductions:470695 },
+            other: { companySocialInsurance:172250, temporaryDisabilityBenefit:0, closingSalary:0, receivable:0, food:90000 },
+            netPay: 909305
+          }
+        ]
+      },
+      bayarmaa: {
+        registerNumber: "УБ00000002", password: "demo123", active: true, lastName: "Сүхбат", firstName: "Баярмаа",
+        position: "Борлуулалтын ажилтан", accountInfo: "ХасБанк ****9012",
+        baseSalaryRate: 1400000, avgWage: 1400000,
+        months: [
+          {
+            label: "9-р сар",
+            timeTracking: { requiredHours:176, workedHours:176, overtimeHours:10, holidayWorkedHours:8, paidLeaveHours:0 },
+            calculation: { workedTimePay:1400000, overtimePay:95455, holidayPay:63636, annualLeavePay:0, bonusPay:250000, mealAllowance:120000, mealDeduction:90000, otherAdditionalPay:0, differencePay:0, totalCalculatedPay:1929091 },
+            deductions: { socialInsuranceEmployee:221845, taxableIncome:1707246, incomeTax:170725, mealDeduction:90000, advance:0, savingsTransfer:50000, totalDeductions:532570 },
+            other: { companySocialInsurance:241136, temporaryDisabilityBenefit:0, closingSalary:0, receivable:20000, food:90000 },
+            netPay: 1396521
+          }
+        ]
+      }
+    }
+  };
+
+  let currentUser = null;
+  let dataStore = null;
+  let currentEmp = null;
+  let activePill = 'all';
+  let periodGranularity = 'month'; // 'month' | 'quarter' | 'year'
+
+  // Ажилтны нэвтрэх мэдээллийг Gist-ээс уншиж dataStore-д хадгална (нэвтрэхээс өмнө дуудагдана)
+  async function loadDirectoryData(){
+    const syncNoteEl = document.getElementById('syncNote');
+    if (CONFIG.GIST_RAW_URL){
+      try{
+        const res = await fetch(CONFIG.GIST_RAW_URL + (CONFIG.GIST_RAW_URL.includes('?') ? '&' : '?') + '_=' + Date.now());
+        if (!res.ok) throw new Error("Сүлжээний алдаа");
+        dataStore = await res.json();
+        if (syncNoteEl) syncNoteEl.textContent = "Сүүлд шинэчилсэн: " + (dataStore.updatedAt || "тодорхойгүй");
+      }catch(err){
+        console.error(err);
+        dataStore = SAMPLE_DATA;
+        if (syncNoteEl) syncNoteEl.textContent = "Gist холбогдсонгүй — жишээ өгөгдөл харуулж байна.";
+      }
+    } else {
+      dataStore = SAMPLE_DATA;
+      if (syncNoteEl) syncNoteEl.textContent = "Жишээ өгөгдөл (CONFIG.GIST_RAW_URL тохируулаагүй байна)";
+    }
+    return dataStore;
+  }
+
+  async function attemptLogin(){
+    const u = document.getElementById('loginUser').value.trim().toLowerCase();
+    const p = document.getElementById('loginPass').value;
+    const errEl = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+
+    const accMatch = ACCOUNTANTS.find(a => a.username === u && a.password === p);
+    if (accMatch){
+      errEl.textContent = "";
+      currentUser = accMatch;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('accountantApp').style.display = 'block';
+      document.getElementById('gistIdInput').value = CONFIG.GIST_ID || '';
+      document.getElementById('gistFilenameInput').value = CONFIG.GIST_FILENAME || '';
+      return;
+    }
+
+    // Ажилтны эрхийг Gist-ээс шалгана (шинээр нэмэгдсэн ажилтан ч энд шууд ажиллана)
+    loginBtn.disabled = true;
+    errEl.textContent = "Шалгаж байна…";
+    await loadDirectoryData();
+    loginBtn.disabled = false;
+
+    const empRecord = dataStore && dataStore.employees ? dataStore.employees[u] : null;
+    if (!empRecord || empRecord.password === undefined || empRecord.password !== p || empRecord.active === false){
+      errEl.textContent = "Нэвтрэх нэр эсвэл нууц үг буруу байна.";
+      return;
+    }
+
+    errEl.textContent = "";
+    currentUser = { username: u, name: (empRecord.lastName?empRecord.lastName+'.':'') + (empRecord.firstName||'') };
+    currentEmp = empRecord;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    render();
+  }
+
+  function logout(){
+    currentUser = null;
+    document.getElementById('loginPass').value = "";
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('accountantApp').style.display = 'none';
+  }
+
+  async function loadData(){
+    document.getElementById('syncNote').textContent = "Мэдээлэл татаж байна…";
+    await loadDirectoryData();
+    currentEmp = dataStore.employees[currentUser.username];
+    render();
+  }
+
+  function refreshData(){ loadData(); }
+
+  function switchView(which){
+    document.getElementById('tabMonths').classList.toggle('active', which==='months');
+    document.getElementById('tabTotal').classList.toggle('active', which==='total');
+    document.getElementById('panelMonthsView').classList.toggle('active', which==='months');
+    document.getElementById('panelTotalView').classList.toggle('active', which==='total');
+  }
+
+  function setPill(key){ activePill = key; renderPanels(); renderPills(); }
+
+  function setGranularity(key){ periodGranularity = key; renderPanels(); renderGranularity(); renderKPI(); }
+
+  function renderGranularity(){
+    const row = document.getElementById('granularityRow');
+    const opts = [
+      {key:'month', label:'Сараар'},
+      {key:'quarter', label:'Улирлаар'},
+      {key:'year', label:'Жилээр'},
+    ];
+    row.innerHTML = opts.map(o => `
+      <div class="pill ${periodGranularity===o.key?'active':''}" onclick="setGranularity('${o.key}')">
+        <span class="dot"></span>${o.label}
+      </div>
+    `).join('');
+  }
+
+  function getMonthNumber(label){
+    // 4 оронтой жилийг хасаад, үлдсэнээс эхний 1-2 оронтой тоог сарын дугаар гэж авна.
+    // "8-р сар", "8-p сар" (латин p), "2026 оны 9-р сар" бүгдийг таниулна.
+    const cleaned = String(label || '').replace(/\b\d{4}\b/g, ' ');
+    const m = /(\d{1,2})/.exec(cleaned);
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    return (n >= 1 && n <= 12) ? n : null;
+  }
+
+  // Саруудыг сарын дугаараар (1..12) цаг хугацааны дарааллаар (хуучнаас шинэ рүү) эрэмбэлнэ —
+  // Gist-д хадгалагдсан дараалал (upload хийсэн дараалал) буруу байсан ч зөв харагдана.
+  function sortMonthsChronologically(months){
+    const withIdx = (months || []).map((m, i) => {
+      const n = getMonthNumber(m.label);
+      return { m, i, key: n == null ? Infinity : n }; // дугаар тодорхойгүй нь хамгийн сүүлд
+    });
+    withIdx.sort((a, b) => (a.key !== b.key) ? (a.key - b.key) : (b.i - a.i));
+    return withIdx.map(x => x.m);
+  }
+
+  function getPeriodKey(m, granularity){
+    if (granularity === 'month') return m.label;
+    const mn = getMonthNumber(m.label);
+    if (granularity === 'quarter'){
+      if (mn == null) return m.label;
+      const q = Math.ceil(mn / 3);
+      return (m.year ? (m.year + ' ') : '') + q + '-р улирал';
+    }
+    if (granularity === 'year'){
+      return m.year ? (m.year + ' он') : 'Бүх хугацаа';
+    }
+    return m.label;
+  }
+
+  // months: currentEmp.months (newest-first). Returns a column plan:
+  //  - grouped=false (granularity 'month'): { grouped:false, flat:[{data:monthObj,isAgg:false}, ...] } oldest→newest
+  //  - grouped=true (quarter/year): months stay visible, grouped under a spanning header, with a
+  //    trailing aggregate ("Нийт") column appended after each group's own months.
+  function buildGroupedColumns(months, granularity){
+    const oldestFirst = sortMonthsChronologically(months);
+    if (granularity === 'month'){
+      return { grouped:false, flat: oldestFirst.map(m => ({ data:m, isAgg:false })) };
+    }
+
+    const order = [];
+    const byKey = {};
+    oldestFirst.forEach(m => {
+      const key = getPeriodKey(m, granularity);
+      if (!byKey[key]){
+        const bucket = {
+          label: key,
+          months: [],
+          agg: { label:'Нийт', timeTracking:{}, calculation:{}, deductions:{}, other:{}, netPay:0 }
+        };
+        byKey[key] = bucket;
+        order.push(bucket);
+      }
+      const b = byKey[key];
+      b.months.push(m);
+      b.agg.netPay += (m.netPay || 0);
+      CATEGORY_DEFS.forEach(cd => {
+        const srcKey = CATEGORY_SOURCE[cd.key];
+        const src = m[srcKey] || {};
+        cd.fields.forEach(([fkey]) => {
+          b.agg[srcKey][fkey] = (b.agg[srcKey][fkey] || 0) + (src[fkey] || 0);
+        });
+      });
+    });
+
+    const flat = [];
+    const groupsMeta = [];
+    order.forEach(b => {
+      groupsMeta.push({ label: b.label, span: b.months.length + 1 });
+      b.months.forEach(m => flat.push({ data:m, isAgg:false }));
+      flat.push({ data:b.agg, isAgg:true });
+    });
+    return { grouped:true, flat, groupsMeta };
+  }
+
+  function renderPills(){
+    const pillsRow = document.getElementById('pillsRow');
+    const opts = [{key:'all', label:'Бүгд'}, ...CATEGORY_DEFS.map(c=>({key:c.key, label: c.label.charAt(0)+c.label.slice(1).toLowerCase()}))];
+    pillsRow.innerHTML = opts.map(o => `
+      <div class="pill ${activePill===o.key?'active':''}" onclick="setPill('${o.key}')">
+        <span class="dot"></span>${o.label}
+      </div>
+    `).join('');
+  }
+
+  function renderKPI(){
+    const kpiRow = document.getElementById('kpiRow');
+    if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){ kpiRow.innerHTML=""; return; }
+    const months = currentEmp.months;
+    const n = months.length;
+    const sumCalc = months.reduce((s,m)=>s+(m.calculation?.totalCalculatedPay||0),0);
+    const sumNet  = months.reduce((s,m)=>s+getTotalPaid(m),0);
+    const avgNet  = sumNet / n;
+
+    const columns = buildGroupedColumns(months, periodGranularity);
+    const latestPeriod = columns.flat[columns.flat.length - 1].data; // last entry: last month, or last group's aggregate
+    const periodNoun = periodGranularity === 'quarter' ? 'улирал' : periodGranularity === 'year' ? 'жил' : 'сар';
+
+    kpiRow.innerHTML = `
+      <div class="kpi-card">
+        <div class="label">НИЙТ БОДОГДСОН ЦАЛИН (${n} САР)</div>
+        <div class="value">${fmt(sumCalc)}</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="label">НИЙТ ОЛГОСОН ЦАЛИН</div>
+        <div class="value">${fmt(sumNet)}</div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="label">ДУНДАЖ САРЫН ЦАЛИН</div>
+        <div class="value">${fmt(avgNet)}</div>
+        <div class="note">${n} сарын дундаж</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">${latestPeriod.label}-Н БОДОГДСОН ЦАЛИН</div>
+        <div class="value">${fmt(latestPeriod.calculation?.totalCalculatedPay)}</div>
+        <div class="note">Сүүлийн ${periodNoun}</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="label">${latestPeriod.label}-Н НИЙТ ОЛГОСОН</div>
+        <div class="value">${fmt(getTotalPaid(latestPeriod))}</div>
+        <div class="note">Сүүлийн ${periodNoun}</div>
+      </div>
+    `;
+  }
+
+  function fieldBox(label, value, unit, isDeductLike){
+    const display = unit === 'hours' ? fmtH(value) : fmt(value);
+    return `<div class="roval">
+      <label>${label}</label>
+      <div class="box ${isDeductLike?'deduct':''}">${display}</div>
+    </div>`;
+  }
+
+  function colGroupHTML(nMonthCols, withTotal){
+    let html = '<colgroup><col style="width:260px">';
+    for(let i=0;i<nMonthCols;i++) html += '<col>';
+    if (withTotal) html += '<col style="width:150px">';
+    html += '</colgroup>';
+    return html;
+  }
+
+  function renderCombinedTable(catDefs, withTotal, columns){
+    columns = columns || buildGroupedColumns(currentEmp.months, periodGranularity);
+    const flat = columns.flat;
+    const totalFieldKeys = ['totalCalculatedPay','totalDeductions'];
+    const realCols = flat.filter(c => !c.isAgg); // used for the grand-total column, avoids double counting
+
+    let headerHtml;
+    if (columns.grouped){
+      headerHtml = `
+        <tr>
+          <th rowspan="2">Зүйл</th>
+          ${columns.groupsMeta.map(g => `<th colspan="${g.span}">${g.label}</th>`).join('')}
+          ${withTotal ? '<th rowspan="2">НИЙТ</th>' : ''}
+        </tr>
+        <tr>
+          ${flat.map(c => `<th class="${c.isAgg?'sub-total-col':''}">${c.data.label}</th>`).join('')}
+        </tr>`;
+    } else {
+      headerHtml = `<tr><th>Зүйл</th>${flat.map(c=>`<th>${c.data.label}</th>`).join('')}${withTotal?'<th>НИЙТ</th>':''}</tr>`;
+    }
+
+    let html = `<table class="cmp">
+      ${colGroupHTML(flat.length, withTotal)}
+      ${headerHtml}`;
+
+    catDefs.forEach((catDef, ci) => {
+      const srcKey = CATEGORY_SOURCE[catDef.key];
+      if (ci > 0){
+        html += `<tr class="group-sep"><td colspan="${flat.length+1+(withTotal?1:0)}">${catDef.label}</td></tr>`;
+      }
+      catDef.fields.forEach(([fkey, flabel]) => {
+        const isTotalRow = totalFieldKeys.includes(fkey);
+        const isDeductRow = catDef.key === 'deduct' && fkey !== 'taxableIncome';
+        html += `<tr class="${isTotalRow?'total':''}"><td>${flabel}</td>`;
+        let sum = 0;
+        flat.forEach(c => {
+          const src = c.data[srcKey] || {};
+          const val = src[fkey];
+          if (!c.isAgg) sum += (val || 0);
+          const display = catDef.unit === 'hours' ? fmtH(val) : fmt(val);
+          html += `<td class="${isDeductRow?'deduct':''} ${c.isAgg?'sub-total-col':''}">${display}</td>`;
+        });
+        if (withTotal){
+          const sumDisplay = catDef.unit === 'hours' ? fmtH(sum) : fmt(sum);
+          html += `<td class="${isDeductRow?'deduct':''}">${sumDisplay}</td>`;
+        }
+        html += `</tr>`;
+      });
+    });
+
+    const sumNet = realCols.reduce((s,c)=>s+getTotalPaid(c.data),0);
+    html += `<tr class="net-row"><td>Нийт олгосон цалин</td>${flat.map(c=>`<td class="${c.isAgg?'sub-total-col':''}">${fmt(getTotalPaid(c.data))}</td>`).join('')}${withTotal?`<td>${fmt(sumNet)}</td>`:''}</tr>`;
+    html += `</table>`;
+    return `<div class="cat-block">${html}</div>`;
+  }
+
+  function renderCategoryBlock(catDef, withTotal, columns){
+    columns = columns || buildGroupedColumns(currentEmp.months, periodGranularity);
+    const flat = columns.flat;
+    const srcKey = CATEGORY_SOURCE[catDef.key];
+    const totalFieldKeys = ['totalCalculatedPay','totalDeductions'];
+    const realCols = flat.filter(c => !c.isAgg);
+
+    let headerHtml;
+    if (columns.grouped){
+      headerHtml = `
+        <tr>
+          <th rowspan="2">Зүйл</th>
+          ${columns.groupsMeta.map(g => `<th colspan="${g.span}">${g.label}</th>`).join('')}
+          ${withTotal ? '<th rowspan="2">НИЙТ</th>' : ''}
+        </tr>
+        <tr>
+          ${flat.map(c => `<th class="${c.isAgg?'sub-total-col':''}">${c.data.label}</th>`).join('')}
+        </tr>`;
+    } else {
+      headerHtml = `<tr><th>Зүйл</th>${flat.map(c=>`<th>${c.data.label}</th>`).join('')}${withTotal?'<th>НИЙТ</th>':''}</tr>`;
+    }
+
+    let html = `<div class="cat-block"><div class="cat-title">${catDef.label}</div>
+      <table class="cmp">
+        ${colGroupHTML(flat.length, withTotal)}
+        ${headerHtml}`;
+
+    catDef.fields.forEach(([fkey, flabel]) => {
+      const isTotalRow = totalFieldKeys.includes(fkey);
+      const isDeductRow = catDef.key === 'deduct' && fkey !== 'taxableIncome';
+      html += `<tr class="${isTotalRow?'total':''}"><td>${flabel}</td>`;
+      let sum = 0;
+      flat.forEach(c => {
+        const src = c.data[srcKey] || {};
+        const val = src[fkey];
+        if (!c.isAgg) sum += (val || 0);
+        const display = catDef.unit === 'hours' ? fmtH(val) : fmt(val);
+        html += `<td class="${isDeductRow?'deduct':''} ${c.isAgg?'sub-total-col':''}">${display}</td>`;
+      });
+      if (withTotal){
+        const sumDisplay = catDef.unit === 'hours' ? fmtH(sum) : fmt(sum);
+        html += `<td>${sumDisplay}</td>`;
+      }
+      html += `</tr>`;
+    });
+
+    html += `</table></div>`;
+    return html;
+  }
+
+  function renderPanels(){
+    const panelsRow = document.getElementById('panelsRow');
+    if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){ panelsRow.innerHTML=""; return; }
+
+    panelsRow.className = 'panels single';
+
+    const columns = buildGroupedColumns(currentEmp.months, periodGranularity);
+
+    const timeDef = CATEGORY_DEFS.find(c=>c.key==='time');
+    const calcDef = CATEGORY_DEFS.find(c=>c.key==='calc');
+    const deductOtherDefs = CATEGORY_DEFS.filter(c=>c.key==='deduct' || c.key==='other');
+
+    let body = '';
+    if (activePill === 'all' || activePill === 'time'){
+      body += renderCategoryBlock(timeDef, false, columns);
+    }
+    if (activePill === 'all' || activePill === 'calc'){
+      body += renderCategoryBlock(calcDef, false, columns);
+    }
+    if (activePill === 'all'){
+      body += renderCombinedTable(deductOtherDefs, false, columns);
+    } else if (activePill === 'deduct' || activePill === 'other'){
+      body += renderCombinedTable(deductOtherDefs.filter(c=>c.key===activePill), false, columns);
+    }
+
+    panelsRow.innerHTML = `<div class="panel">
+      <div class="panel-body">${body}</div>
+    </div>`;
+  }
+
+  function renderTotalsTable(){
+    const tbl = document.getElementById('totalsTable');
+    if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){ tbl.innerHTML=""; return; }
+    const sortedMonths = sortMonthsChronologically(currentEmp.months);
+    let rows = "", sumCalc=0, sumDeduct=0, sumNet=0, sumBase=0;
+    sortedMonths.forEach(m => {
+      const c = m.calculation||{}, d = m.deductions||{};
+      const totalPaid = getTotalPaid(m);
+      sumCalc += c.totalCalculatedPay||0; sumDeduct += d.totalDeductions||0;
+      sumNet += totalPaid; sumBase += c.workedTimePay||0;
+      rows += `<tr>
+        <td>${m.label}</td>
+        <td>${fmt(c.workedTimePay)}</td>
+        <td>${fmt(c.totalCalculatedPay)}</td>
+        <td class="deduct">−${fmt(d.totalDeductions)}</td>
+        <td class="net">${fmt(totalPaid)}</td>
+      </tr>`;
+    });
+    tbl.innerHTML = `
+      <tr><th>Сар</th><th>Үндсэн цалин</th><th>Нийт бодогдсон цалин</th><th>Нийт суутгал</th><th>Нийт олгосон цалин</th></tr>
+      ${rows}
+      <tr class="grand">
+        <td>Нийт (${currentEmp.months.length} сар)</td>
+        <td>${fmt(sumBase)}</td><td>${fmt(sumCalc)}</td>
+        <td class="deduct">−${fmt(sumDeduct)}</td><td class="net">${fmt(sumNet)}</td>
+      </tr>
+    `;
+  }
+
+  function renderDetailedTotals(){
+    const wrap = document.getElementById('totalsDetail');
+    if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){ wrap.innerHTML=""; return; }
+    const timeDef = CATEGORY_DEFS.find(c=>c.key==='time');
+    const calcDef = CATEGORY_DEFS.find(c=>c.key==='calc');
+    const deductOtherDefs = CATEGORY_DEFS.filter(c=>c.key==='deduct' || c.key==='other');
+    const monthlyColumns = buildGroupedColumns(currentEmp.months, 'month');
+
+    const body =
+      renderCategoryBlock(timeDef, true, monthlyColumns) +
+      renderCategoryBlock(calcDef, true, monthlyColumns) +
+      renderCombinedTable(deductOtherDefs, true, monthlyColumns);
+
+    wrap.innerHTML = `<div class="panel"><div class="panel-body">${body}</div></div>`;
+  }
+
+  function render(){
+    const emptyState = document.getElementById('emptyState');
+    if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){
+      document.getElementById('bannerTitle').textContent = currentUser.name;
+      emptyState.style.display = 'block';
+      document.getElementById('kpiRow').innerHTML = '';
+      document.getElementById('panelsRow').innerHTML = '';
+      document.getElementById('pillsRow').innerHTML = '';
+      document.getElementById('granularityRow').innerHTML = '';
+      document.getElementById('totalsTable').innerHTML = '';
+      document.getElementById('totalsDetail').innerHTML = '';
+      return;
+    }
+    emptyState.style.display = 'none';
+    const fullName = (currentEmp.lastName ? currentEmp.lastName + '.' : '') + currentEmp.firstName;
+    document.getElementById('bannerTitle').textContent = fullName + ' · Цалингийн задаргаа';
+    document.getElementById('bannerSub').textContent =
+      `${currentEmp.position || ''} · Регистр: ${currentEmp.registerNumber || '—'} · Дундаж цалин хөлс: ${fmt(currentEmp.avgWage)}`;
+
+    renderKPI();
+    renderGranularity();
+    renderPills();
+    renderPanels();
+    renderTotalsTable();
+    renderDetailedTotals();
+  }
+
+  // Excel-ийн баганы монгол нэрийг дотоод JSON түлхүүртэй холбох
+  const HEADER_MAP = {
+    'Регистрийн дугаар': { group:'top', key:'registerNumber' },
+    'Овог':               { group:'top', key:'lastName' },
+    'Нэр':                { group:'top', key:'firstName' },
+    'Албан тушаал':       { group:'top', key:'position' },
+    'Дансны мэдээлэл':    { group:'top', key:'accountInfo' },
+    'Үндсэн цалин':       { group:'top', key:'baseSalaryRate' },
+    'Дундаж цалин хөлс':  { group:'top', key:'avgWage' },
+
+    'Ажиллах зохих цаг':  { group:'timeTracking', key:'requiredHours' },
+    'Ажилбал зохих цаг':  { group:'timeTracking', key:'requiredHours' },
+    'Ажилласан цаг':      { group:'timeTracking', key:'workedHours' },
+    'Илүү цаг':           { group:'timeTracking', key:'overtimeHours' },
+    'Баяр ёслолын өдөр ажилласан': { group:'timeTracking', key:'holidayWorkedHours' },
+    'Цалинтай чөлөөний цаг': { group:'timeTracking', key:'paidLeaveHours' },
+
+    'Ажилласан хугацаанд ногдох цалин': { group:'calculation', key:'workedTimePay' },
+    'Илүү цагийн цалин':  { group:'calculation', key:'overtimePay' },
+    'Баяр ёслол':         { group:'calculation', key:'holidayPay' },
+    'Ээлжийн амралтын цалин': { group:'calculation', key:'annualLeavePay' },
+    'Бонус цалин':        { group:'calculation', key:'bonusPay' },
+    'Хоолны нэмэгдэл':    { group:'calculation', key:'mealAllowance' },
+    'Хоол хасагдах дүн':  { group:'calculation', key:'mealDeduction' },
+    'Бусад нэмэгдэл цалин': { group:'calculation', key:'otherAdditionalPay' },
+    'Зөрүү цалин':        { group:'calculation', key:'differencePay' },
+    'Нийт бодогдсон цалин': { group:'calculation', key:'totalCalculatedPay' },
+
+    'НДШ 11.5%':          { group:'deductions', key:'socialInsuranceEmployee' },
+    'Татвар тооцох орлого': { group:'deductions', key:'taxableIncome' },
+    'ХАОАТ':              { group:'deductions', key:'incomeTax' },
+    'Хоол суутгал':       { group:'deductions', key:'mealDeduction' },
+    'Урьдчилгаа':         { group:'deductions', key:'advance' },
+    'Хуримтлал шилжүүлэг': { group:'deductions', key:'savingsTransfer' },
+    'нийт суутгал':       { group:'deductions', key:'totalDeductions' },
+    'Нийт суутгал':       { group:'deductions', key:'totalDeductions' },
+
+    'ХЧТА тэтгэмж':       { group:'other', key:'temporaryDisabilityBenefit' },
+    'Хаах цалин':         { group:'other', key:'closingSalary' },
+    'Авлага':             { group:'other', key:'receivable' },
+    'Хоол':               { group:'other', key:'food' },
+
+    'Нийт гарт олгох цалин': { group:'top', key:'netPay' },
+    // 'Байгууллагын НДШ 12.5%' — апп-д харуулахгүй тул зориудаар холбоогүй, парс хийхдээ алгасна
+  };
+
+  function normHeader(s){ return (s||'').toString().trim().replace(/\s+/g,' '); }
+  function normKey(s){ return normHeader(s).toLowerCase(); }
+
+  // HEADER_MAP-ийг жижиг үсэгт бууруулсан (normalized) хайлт болгож урьдчилан бэлдэнэ
+  const HEADER_MAP_NORM = {};
+  Object.keys(HEADER_MAP).forEach(k => { HEADER_MAP_NORM[normKey(k)] = HEADER_MAP[k]; });
+
+  // Нэг sheet-ийн мөрүүдээс (header:1 хэлбэрээр уншсан 2D массив) ажилчдын мэдээлэл задлан авах
+  function parseSheetRows(rows){
+    let headerRowIdx = -1, headerCellsA = [];
+    for (let i=0;i<Math.min(rows.length,10);i++){
+      const cells = (rows[i]||[]).map(normHeader);
+      if (cells.some(c => normKey(c) === normKey('Регистрийн дугаар'))){ headerRowIdx = i; headerCellsA = cells; break; }
+    }
+    if (headerRowIdx === -1){
+      throw new Error("Толгой мөрийг олсонгүй — 'Регистрийн дугаар' баганатай эсэхийг шалгана уу.");
+    }
+
+    const nextRowCells = (rows[headerRowIdx+1] || []).map(normHeader);
+    const nextRowLooksLikeSubHeader = nextRowCells.some(c => c && HEADER_MAP_NORM[normKey(c)]);
+    let headerCells, dataStartRow;
+    if (nextRowLooksLikeSubHeader){
+      const maxLen = Math.max(headerCellsA.length, nextRowCells.length);
+      headerCells = [];
+      for (let c=0;c<maxLen;c++){
+        headerCells[c] = nextRowCells[c] || headerCellsA[c] || '';
+      }
+      dataStartRow = headerRowIdx + 2;
+    } else {
+      headerCells = headerCellsA;
+      dataStartRow = headerRowIdx + 1;
+    }
+
+    const colMap = [];
+    const unmatched = [];
+    headerCells.forEach((h, idx) => {
+      if (!h) return;
+      const m = HEADER_MAP_NORM[normKey(h)];
+      if (m) colMap.push({ colIdx: idx, group: m.group, key: m.key });
+      else if (normKey(h) !== normKey('Д.д')) unmatched.push(h);
+    });
+
+    const parsed = [];
+    for (let r = dataStartRow; r < rows.length; r++){
+      const row = rows[r] || [];
+      const hasReg = colMap.some(c => c.key==='registerNumber') ?
+        row[colMap.find(c=>c.key==='registerNumber').colIdx] : null;
+      if (!hasReg) continue;
+
+      const rec = { top:{}, timeTracking:{}, calculation:{}, deductions:{}, other:{} };
+      colMap.forEach(c => {
+        const val = row[c.colIdx];
+        if (c.group === 'top') rec.top[c.key] = val;
+        else rec[c.group][c.key] = (typeof val === 'number') ? val : (parseFloat(val) || 0);
+      });
+      parsed.push(rec);
+    }
+
+    return { parsed, unmatched };
+  }
+
+  function parseExcelFile(){
+    const fileInput = document.getElementById('excelFileInput');
+    const statusEl = document.getElementById('acctStatus');
+    const manualMonthLabel = document.getElementById('monthLabelInput').value.trim();
+    statusEl.className = 'acct-status show info';
+
+    if (!fileInput.files || !fileInput.files[0]){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд Excel файл сонгоно уу.";
+      return;
+    }
+
+    statusEl.textContent = "Файлыг уншиж байна…";
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try{
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+        const sheetNames = wb.SheetNames;
+
+        if (sheetNames.length === 1 && !manualMonthLabel){
+          throw new Error("Сарын нэрийг оруулна уу (жиш: 10-р сар).");
+        }
+
+        const batches = [];
+        const allUnmatched = new Set();
+
+        sheetNames.forEach(sheetName => {
+          const sheet = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:null });
+          // Хоосон sheet (жишээ нь тэмдэглэл авах хуудас) алгасах
+          const hasRegHeader = rows.slice(0,10).some(r => (r||[]).some(c => normKey(normHeader(c)) === normKey('Регистрийн дугаар')));
+          if (!hasRegHeader) return;
+
+          const { parsed, unmatched } = parseSheetRows(rows);
+          unmatched.forEach(u => allUnmatched.add(u));
+          if (parsed.length > 0){
+            // Олон sheet-тэй үед sheet-ийн нэрийг сарын нэр болгон ашиглана;
+            // ганц sheet-тэй үед гараар бичсэн сарын нэрийг ашиглана.
+            const label = sheetNames.length > 1 ? sheetName.trim() : manualMonthLabel;
+            batches.push({ monthLabel: label, parsed });
+          }
+        });
+
+        if (batches.length === 0){
+          throw new Error("Ажилтны мэдээлэл бүхий sheet олдсонгүй.");
+        }
+
+        // Огтлолт бүрийг сарын дугаараар (боломжтой бол) хуучнаас шинэ рүү эрэмбэлнэ
+        batches.sort((a,b) => {
+          const an = getMonthNumber(a.monthLabel), bn = getMonthNumber(b.monthLabel);
+          if (an != null && bn != null) return an - bn;
+          return 0;
+        });
+
+        window.__parsedBatches = batches;
+        window.__unmatchedHeaders = Array.from(allUnmatched);
+        renderPreview(batches);
+
+        const totalRows = batches.reduce((s,b)=>s+b.parsed.length,0);
+        statusEl.className = 'acct-status show ok';
+        let msg = `${batches.length} сарын мэдээлэл (${batches.map(b=>b.monthLabel).join(', ')}), нийт ${totalRows} мөр амжилттай уншигдлаа. Доорх хүснэгтээр шалгаад "Gist рүү шинэчлэх" дарна уу.`;
+        if (allUnmatched.size){
+          msg += ` ⚠️ Тохирохгүй (алгассан) багана: ${Array.from(allUnmatched).join(', ')}`;
+        }
+        // Багана шилжсэн байж болзошгүй мөрийг илрүүлэх: ажилласан хугацааны цалин 0, харин илүү цагийн
+        // цалин > 0 байхад илүү цагийн цаг 0 бол ихэнхдээ дүн буруу баганад орсон байдаг.
+        const suspicious = batches.map(b => ({
+          label: b.monthLabel,
+          n: b.parsed.filter(r => !(r.calculation.workedTimePay) && (r.calculation.overtimePay > 0) && !(r.timeTracking.overtimeHours > 0)).length
+        })).filter(x => x.n > 0);
+        if (suspicious.length){
+          msg += ` ⚠️ Багана шилжсэн байж болзошгүй мөр: ${suspicious.map(x => x.label + ' (' + x.n + ')').join(', ')} — ажилласан хугацааны цалин 0, илүү цагийн цалин >0 байна. Excel-ийнхээ толгой мөрийг шалгана уу.`;
+        }
+        statusEl.textContent = msg;
+        document.getElementById('pushBtn').disabled = false;
+      }catch(err){
+        console.error(err);
+        statusEl.className = 'acct-status show err';
+        statusEl.textContent = "Алдаа: " + err.message;
+        document.getElementById('pushBtn').disabled = true;
+      }
+    };
+    reader.readAsArrayBuffer(fileInput.files[0]);
+  }
+
+  function findEmployeeByReg(employeesObj, reg){
+    if (!employeesObj) return null;
+    const uname = Object.keys(employeesObj).find(u => normHeader(employeesObj[u].registerNumber) === normHeader(reg));
+    return uname ? { username: uname, ...employeesObj[uname] } : null;
+  }
+
+  function renderPreview(batches){
+    const card = document.getElementById('previewCard');
+    const tbl = document.getElementById('previewTable');
+    card.style.display = 'block';
+
+    let html = '';
+    batches.forEach(batch => {
+      const monthLabel = batch.monthLabel;
+      let rows = '';
+      batch.parsed.forEach(rec => {
+        const reg = rec.top.registerNumber;
+        const match = findEmployeeByReg(dataStore && dataStore.employees, reg);
+        rows += `<tr class="${match?'':'no-match'}">
+          <td>${reg || '—'}</td>
+          <td>${rec.top.lastName||''} ${rec.top.firstName||''}</td>
+          <td>${match ? match.username : 'ТОХИРОХГҮЙ'}</td>
+          <td>${fmt(rec.calculation.totalCalculatedPay)}</td>
+          <td>${fmt(rec.deductions.totalDeductions)}</td>
+          <td>${fmt(rec.top.netPay + (rec.deductions.advance||0))}</td>
+        </tr>`;
+      });
+      html += `
+        <tr><td colspan="6" style="background:#f6f8fb; font-weight:700; color:var(--blue-deep); padding-top:14px;">${monthLabel} (${batch.parsed.length} ажилтан)</td></tr>
+        <tr>
+          <th>Регистр</th><th>Нэр</th><th>Апп-ийн нэвтрэх нэр</th>
+          <th>Нийт бодогдсон</th><th>Нийт суутгал</th><th>Нийт олгосон</th>
+        </tr>
+        ${rows}
+      `;
+    });
+
+    tbl.innerHTML = html;
+  }
+
+  async function fetchGistViaAPI(gistId, token){
+    const headers = { 'Accept':'application/vnd.github+json' };
+    if (token) headers['Authorization'] = 'token ' + token;
+    const res = await fetch('https://api.github.com/gists/' + gistId, { headers });
+    if (!res.ok) throw new Error('Gist уншихад алдаа гарлаа (' + res.status + ')');
+    return res.json();
+  }
+
+  // ---------- Сарын өгөгдөл засах: ажилласан хугацааны цалин ↔ илүү цагийн цалин ----------
+  let repairPlan = null; // { moves:[{username,name,label,amount}], skipped:[{username,name,label,overtimeHours,overtimePay}] }
+
+  function parseRepairMonths(){
+    return document.getElementById('repairMonthsInput').value
+      .split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  async function planMonthRepair(){
+    const statusEl = document.getElementById('repairStatus');
+    const gistId = document.getElementById('gistIdInput').value.trim();
+    const filename = document.getElementById('gistFilenameInput').value.trim() || CONFIG.GIST_FILENAME;
+    const token = document.getElementById('githubTokenInput').value.trim();
+    const labels = parseRepairMonths();
+
+    if (!gistId || !token){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Дээд талын Gist ID болон GitHub Token-ыг эхлээд оруулна уу.";
+      return;
+    }
+    if (labels.length === 0){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Засах саруудын нэрийг оруулна уу (жиш: 1-р сар, 2-р сар).";
+      return;
+    }
+
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Gist-ийн өгөгдлийг шалгаж байна…";
+    try{
+      const gist = await fetchGistViaAPI(gistId, token);
+      const file = gist.files[filename];
+      const data = (file && file.content) ? JSON.parse(file.content) : { employees:{} };
+
+      const moves = [], skipped = [];
+      Object.keys(data.employees || {}).forEach(u => {
+        const emp = data.employees[u];
+        const name = (emp.lastName ? emp.lastName + '.' : '') + (emp.firstName || u);
+        (emp.months || []).forEach(m => {
+          if (!labels.includes(m.label)) return;
+          const calc = m.calculation || {};
+          const hrs = (m.timeTracking && m.timeTracking.overtimeHours) || 0;
+          if (!calc.workedTimePay && calc.overtimePay > 0){
+            if (hrs > 0) skipped.push({ username:u, name, label:m.label, overtimeHours:hrs, overtimePay:calc.overtimePay });
+            else moves.push({ username:u, name, label:m.label, amount:calc.overtimePay });
+          }
+        });
+      });
+
+      repairPlan = { moves, skipped, labels };
+
+      const rows = moves.map(x => `<tr><td>${x.name}</td><td>${x.label}</td><td>${fmt(x.amount)}</td><td>Ажилласан хугацааны цалин руу зөөнө</td></tr>`).join('')
+        + skipped.map(x => `<tr class="no-match"><td>${x.name}</td><td>${x.label}</td><td>${fmt(x.overtimePay)}</td><td>АЛГАСНА — илүү цаг ${x.overtimeHours} ц байгаа, гараар шалгана уу</td></tr>`).join('');
+      document.getElementById('repairPreviewTable').innerHTML =
+        `<tr><th>Ажилтан</th><th>Сар</th><th>Илүү цагийн цалин (одоо)</th><th>Үйлдэл</th></tr>${rows || '<tr><td colspan="4">Засах мөр олдсонгүй.</td></tr>'}`;
+      document.getElementById('repairPreviewWrap').style.display = 'block';
+      document.getElementById('repairApplyBtn').disabled = moves.length === 0;
+
+      statusEl.className = 'acct-status show ok';
+      statusEl.textContent = `${moves.length} мөр засагдахад бэлэн, ${skipped.length} мөр алгасагдана. Шалгаад "Засаад Gist рүү хадгалах" дарна уу.`;
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Алдаа: " + err.message;
+    }
+  }
+
+  async function applyMonthRepair(){
+    const statusEl = document.getElementById('repairStatus');
+    const gistId = document.getElementById('gistIdInput').value.trim();
+    const filename = document.getElementById('gistFilenameInput').value.trim() || CONFIG.GIST_FILENAME;
+    const token = document.getElementById('githubTokenInput').value.trim();
+    if (!repairPlan || repairPlan.moves.length === 0){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд \"Шалгах\" дарж засах мөрүүдийг гаргана уу.";
+      return;
+    }
+    if (!gistId || !token){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Gist ID болон GitHub Token заавал шаардлагатай.";
+      return;
+    }
+
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Засаж байна…";
+    try{
+      // Хадгалахын өмнө дахин сүүлийн хувилбарыг татаж, нөхцөлийг дахин шалгаад зөвхөн тэр мөрүүдийг л засна
+      const gist = await fetchGistViaAPI(gistId, token);
+      const file = gist.files[filename];
+      const data = JSON.parse(file.content);
+
+      let fixed = 0;
+      repairPlan.moves.forEach(mv => {
+        const emp = data.employees[mv.username];
+        if (!emp) return;
+        const m = (emp.months || []).find(x => x.label === mv.label);
+        if (!m || !m.calculation) return;
+        const hrs = (m.timeTracking && m.timeTracking.overtimeHours) || 0;
+        if (!m.calculation.workedTimePay && m.calculation.overtimePay > 0 && hrs === 0){
+          m.calculation.workedTimePay = m.calculation.overtimePay;
+          m.calculation.overtimePay = 0;
+          fixed++;
+        }
+      });
+
+      data.updatedAt = new Date().toLocaleString('mn-MN');
+      const patchRes = await fetch('https://api.github.com/gists/' + gistId, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'token ' + token,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ files: { [filename]: { content: JSON.stringify(data, null, 2) } } })
+      });
+      if (!patchRes.ok) throw new Error('Gist бичихэд алдаа гарлаа (' + patchRes.status + ')');
+
+      repairPlan = null;
+      document.getElementById('repairApplyBtn').disabled = true;
+      statusEl.className = 'acct-status show ok';
+      statusEl.textContent = `Амжилттай: ${fixed} мөрийн ажилласан хугацааны цалинг зассан. Апп-аа шинэчилж (F5) шалгана уу.`;
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Алдаа: " + err.message;
+    }
+  }
+
+  // ---------- Ажилтан удирдах (Нягтлан бодогчийн панель) ----------
+  let empManagerWorking = null; // { username: {registerNumber,lastName,firstName,position,accountInfo,baseSalaryRate,avgWage,password,active,months} }
+
+  // Санамсаргүй нууц үг: 8 тэмдэгт, жижиг латин үсэг + тоо. Андуурагдах i, l, o, 0, 1-ийг оруулаагүй.
+  function generateRandomPassword(len){
+    len = len || 8;
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    const limit = 256 - (256 % chars.length); // modulo bias-аас сэргийлнэ
+    const buf = new Uint8Array(1);
+    let pw;
+    do {
+      pw = '';
+      while (pw.length < len){
+        crypto.getRandomValues(buf);
+        if (buf[0] >= limit) continue;
+        pw += chars[buf[0] % chars.length];
+      }
+    } while (!/[a-z]/.test(pw) || !/[2-9]/.test(pw)); // үсэг, тоо хоёулаа заавал байна
+    return pw;
+  }
+
+  function randomizeAllPasswords(){
+    const statusEl = document.getElementById('empManagerStatus');
+    if (!empManagerWorking){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд ажилтдын жагсаалтыг ачаална уу.";
+      return;
+    }
+    const usernames = Object.keys(empManagerWorking);
+    if (!confirm(`${usernames.length} ажилтан бүрийн нууц үгийг санамсаргүй шинэ нууц үгээр солих уу? Одоогийн нууц үгс хүчингүй болно.`)) return;
+
+    const used = new Set();
+    usernames.forEach(u => {
+      let pw;
+      do { pw = generateRandomPassword(8); } while (used.has(pw));
+      used.add(pw);
+      empManagerWorking[u].password = pw;
+    });
+    renderEmployeeManagerTable();
+    statusEl.className = 'acct-status show ok';
+    statusEl.textContent = `${usernames.length} ажилтанд санамсаргүй нууц үг үүслээ. Одоо "Нууц үгийн жагсаалт татах (CSV)" дарж хадгалаад, дараа нь "Бүх өөрчлөлтийг Gist рүү хадгалах" дарна уу. Хадгалахаас өмнө хуудсыг сэргээвэл эдгээр нууц үг алдагдана.`;
+  }
+
+  function downloadPasswordList(){
+    const statusEl = document.getElementById('empManagerStatus');
+    if (!empManagerWorking){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд ажилтдын жагсаалтыг ачаална уу.";
+      return;
+    }
+    const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const lines = [['Нэвтрэх нэр', 'Овог', 'Нэр', 'Нууц үг'].map(esc).join(',')];
+    Object.keys(empManagerWorking).sort().forEach(u => {
+      const e = empManagerWorking[u];
+      lines.push([u, e.lastName, e.firstName, e.password].map(esc).join(','));
+    });
+    // \uFEFF: Excel кирилл үсгийг зөв танихын тулд
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ajiltnii_nuuts_ug.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Жагсаалт татагдлаа. Нууц үгийг ажилтан бүрт өгсний дараа файлыг устгана уу.";
+  }
+
+  function autofillMissingPasswords(){
+    const statusEl = document.getElementById('empManagerStatus');
+    if (!empManagerWorking){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд ажилтдын жагсаалтыг ачаална уу.";
+      return;
+    }
+    let count = 0;
+    Object.keys(empManagerWorking).forEach(u => {
+      const e = empManagerWorking[u];
+      if (!e.password){
+        const reg = (e.registerNumber || '').replace(/\D/g, '');
+        e.password = reg.slice(-4) || '0000';
+        count++;
+      }
+    });
+    renderEmployeeManagerTable();
+    statusEl.className = 'acct-status show ok';
+    statusEl.textContent = `${count} ажилтанд регистрийн сүүлийн 4 оронтой тэнцүү санал болгосон нууц үг тавигдлаа. Шалгаад "Gist рүү хадгалах" дарна уу.`;
+  }
+
+  async function loadEmployeeManager(){
+    const statusEl = document.getElementById('empManagerStatus');
+    const gistId = document.getElementById('gistIdInput').value.trim();
+    const token = document.getElementById('githubTokenInput').value.trim();
+    if (!gistId || !token){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд дээд талын Gist ID болон GitHub Token-ыг оруулна уу.";
+      return;
+    }
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Ачаалж байна…";
+    try{
+      const filename = document.getElementById('gistFilenameInput').value.trim() || CONFIG.GIST_FILENAME;
+      const gist = await fetchGistViaAPI(gistId, token);
+      const file = gist.files[filename];
+      const data = (file && file.content) ? JSON.parse(file.content) : { updatedAt:'', employees:{} };
+      empManagerWorking = data.employees || {};
+      renderEmployeeManagerTable();
+      document.getElementById('empManagerWrap').style.display = 'block';
+      document.getElementById('addEmployeeCard').style.display = 'block';
+      document.getElementById('empManagerSaveRow').style.display = 'flex';
+      statusEl.className = 'acct-status show ok';
+      statusEl.textContent = `${Object.keys(empManagerWorking).length} ажилтан ачааллаа.`;
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Алдаа: " + err.message;
+    }
+  }
+
+  function renderEmployeeManagerTable(){
+    const tbl = document.getElementById('empManagerTable');
+    const usernames = Object.keys(empManagerWorking).sort();
+    let rows = usernames.map(u => {
+      const e = empManagerWorking[u];
+      const isActive = e.active !== false;
+      return `<tr class="${isActive?'':'no-match'}">
+        <td>${u}</td>
+        <td>${(e.lastName||'')} ${(e.firstName||'')}</td>
+        <td>${e.registerNumber||''}</td>
+        <td><input type="text" value="${e.password||''}" style="width:100px;" onchange="setEmployeeField('${u}','password',this.value)"></td>
+        <td>
+          <button class="acct-btn ${isActive?'secondary':''}" style="padding:4px 10px; font-size:11.5px;" onclick="toggleEmployeeActive('${u}')">${isActive?'Идэвхтэй':'Идэвхгүй'}</button>
+        </td>
+        <td><button class="acct-btn secondary" style="padding:4px 10px; font-size:11.5px; color:var(--warn); border-color:var(--warn);" onclick="removeEmployeeDraft('${u}')">Устгах</button></td>
+      </tr>`;
+    }).join('');
+
+    tbl.innerHTML = `
+      <tr><th>Нэвтрэх нэр</th><th>Нэр</th><th>Регистр</th><th>Нууц үг</th><th>Төлөв</th><th></th></tr>
+      ${rows}
+    `;
+  }
+
+  function setEmployeeField(username, field, value){
+    if (!empManagerWorking[username]) return;
+    empManagerWorking[username][field] = value;
+  }
+
+  function toggleEmployeeActive(username){
+    if (!empManagerWorking[username]) return;
+    const cur = empManagerWorking[username].active !== false;
+    empManagerWorking[username].active = !cur;
+    renderEmployeeManagerTable();
+  }
+
+  function removeEmployeeDraft(username){
+    if (!confirm(`"${username}" ажилтныг устгах уу? (Цалингийн түүх устана, "Идэвхгүй болгох" нь илүү аюулгүй сонголт)`)) return;
+    delete empManagerWorking[username];
+    renderEmployeeManagerTable();
+  }
+
+  function addEmployeeDraft(){
+    const statusEl = document.getElementById('empManagerStatus');
+    const username = document.getElementById('newEmpUsername').value.trim().toLowerCase();
+    const password = document.getElementById('newEmpPassword').value.trim();
+    const lastName = document.getElementById('newEmpLastName').value.trim();
+    const firstName = document.getElementById('newEmpFirstName').value.trim();
+    const reg = document.getElementById('newEmpReg').value.trim();
+    const position = document.getElementById('newEmpPosition').value.trim();
+    const accountInfo = document.getElementById('newEmpAccount').value.trim();
+    const baseSalary = parseFloat(document.getElementById('newEmpBaseSalary').value) || 0;
+
+    if (!username || !password || !firstName){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Нэвтрэх нэр, нууц үг, нэрийг заавал бөглөнө үү.";
+      return;
+    }
+    if (empManagerWorking[username]){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Энэ нэвтрэх нэр аль хэдийн байна.";
+      return;
+    }
+
+    empManagerWorking[username] = {
+      registerNumber: reg, lastName, firstName, position, accountInfo,
+      baseSalaryRate: baseSalary, avgWage: baseSalary,
+      password, active: true, months: []
+    };
+
+    ['newEmpUsername','newEmpPassword','newEmpLastName','newEmpFirstName','newEmpReg','newEmpPosition','newEmpAccount','newEmpBaseSalary']
+      .forEach(id => document.getElementById(id).value = '');
+
+    renderEmployeeManagerTable();
+    statusEl.className = 'acct-status show ok';
+    statusEl.textContent = `"${username}" жагсаалтад нэмэгдлээ (доор "Gist рүү хадгалах" дарж баталгаажуулна уу).`;
+  }
+
+  async function saveEmployeeDirectory(){
+    const statusEl = document.getElementById('empManagerStatus');
+    const gistId = document.getElementById('gistIdInput').value.trim();
+    const filename = document.getElementById('gistFilenameInput').value.trim() || CONFIG.GIST_FILENAME;
+    const token = document.getElementById('githubTokenInput').value.trim();
+
+    if (!gistId || !token){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Gist ID болон GitHub Token заавал шаардлагатай.";
+      return;
+    }
+    if (!empManagerWorking){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд ажилтдын жагсаалтыг ачаална уу.";
+      return;
+    }
+
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Хадгалж байна…";
+    try{
+      // Санамсаргүй давхар бичихээс сэргийлж хамгийн сүүлийн gist-ийг дахин татаад,
+      // зөвхөн ажилтны жагсаалтын хэсгийг л шинэчилнэ (цалингийн шинэ мэдээлэл алдагдахгүй)
+      const gist = await fetchGistViaAPI(gistId, token);
+      const file = gist.files[filename];
+      const freshData = (file && file.content) ? JSON.parse(file.content) : { updatedAt:'', employees:{} };
+
+      // empManagerWorking доторх өөрчлөлтүүдийг (нэмэгдсэн/устгагдсан/өөрчлөгдсөн) freshData дээр буулгана
+      Object.keys(empManagerWorking).forEach(u => {
+        const draft = empManagerWorking[u];
+        const existing = freshData.employees[u];
+        freshData.employees[u] = {
+          ...(existing || {}), // months зэрэг өгөгдлийг хадгална
+          registerNumber: draft.registerNumber,
+          lastName: draft.lastName,
+          firstName: draft.firstName,
+          position: draft.position,
+          accountInfo: draft.accountInfo,
+          baseSalaryRate: draft.baseSalaryRate,
+          avgWage: (existing && existing.avgWage) || draft.avgWage,
+          password: draft.password,
+          active: draft.active !== false,
+          months: (existing && existing.months) || draft.months || []
+        };
+      });
+      // empManagerWorking-д байхгүй боловч freshData-д байгаа (устгагдсан) ажилтныг хасна
+      Object.keys(freshData.employees).forEach(u => {
+        if (!(u in empManagerWorking)) delete freshData.employees[u];
+      });
+
+      freshData.updatedAt = new Date().toLocaleString('mn-MN');
+
+      const patchRes = await fetch('https://api.github.com/gists/' + gistId, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'token ' + token,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ files: { [filename]: { content: JSON.stringify(freshData, null, 2) } } })
+      });
+      if (!patchRes.ok) throw new Error('Gist бичихэд алдаа гарлаа (' + patchRes.status + ')');
+
+      statusEl.className = 'acct-status show ok';
+      statusEl.textContent = `Амжилттай хадгалагдлаа: ${Object.keys(empManagerWorking).length} ажилтан.`;
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Алдаа: " + err.message;
+    }
+  }
+
+  async function pushToGist(){
+    const statusEl = document.getElementById('acctStatus');
+    const gistId = document.getElementById('gistIdInput').value.trim();
+    const filename = document.getElementById('gistFilenameInput').value.trim() || CONFIG.GIST_FILENAME;
+    const token = document.getElementById('githubTokenInput').value.trim();
+    const batches = window.__parsedBatches;
+
+    if (!gistId || !token){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Gist ID болон GitHub Token заавал шаардлагатай.";
+      return;
+    }
+    if (!batches || batches.length === 0){
+      statusEl.className = 'acct-status show err';
+      statusEl.textContent = "Эхлээд Excel файлыг уншуулна уу.";
+      return;
+    }
+
+    statusEl.className = 'acct-status show info';
+    statusEl.textContent = "Одоогийн Gist өгөгдлийг татаж байна…";
+
+    try{
+      const gist = await fetchGistViaAPI(gistId, token);
+      const file = gist.files[filename];
+      let baseData;
+      if (file && file.content){
+        baseData = JSON.parse(file.content);
+      } else {
+        baseData = { updatedAt: '', employees: {} };
+      }
+
+      let updatedCount = 0;
+      const skipped = new Set();
+
+      // batches аль хэдийн хуучнаас шинэ рүү эрэмбэлэгдсэн — ижил дарааллаар нэг нэгээр нь оруулна
+      batches.forEach(batch => {
+        batch.parsed.forEach(rec => {
+          const match = findEmployeeByReg(baseData.employees, rec.top.registerNumber);
+          if (!match){ skipped.add(rec.top.registerNumber || '—'); return; }
+
+          if (!baseData.employees[match.username]){
+            baseData.employees[match.username] = { months: [] };
+          }
+          const empEntry = baseData.employees[match.username];
+          empEntry.registerNumber = rec.top.registerNumber;
+          empEntry.lastName = rec.top.lastName;
+          empEntry.firstName = rec.top.firstName;
+          empEntry.position = rec.top.position;
+          empEntry.accountInfo = rec.top.accountInfo;
+          empEntry.baseSalaryRate = rec.top.baseSalaryRate;
+          empEntry.avgWage = rec.top.avgWage;
+          if (!Array.isArray(empEntry.months)) empEntry.months = [];
+
+          const newMonth = {
+            label: batch.monthLabel,
+            timeTracking: rec.timeTracking,
+            calculation: rec.calculation,
+            deductions: rec.deductions,
+            other: rec.other,
+            netPay: rec.top.netPay
+          };
+
+          // Ижил нэртэй сар аль хэдийн байвал (давхардуулахгүйгээр) сольж бичнэ,
+          // үгүй бол хамгийн шинэ сар болгож эхэнд нэмнэ.
+          const existingIdx = empEntry.months.findIndex(m => m.label === batch.monthLabel);
+          if (existingIdx !== -1){
+            empEntry.months[existingIdx] = newMonth;
+          } else {
+            empEntry.months.unshift(newMonth);
+          }
+          updatedCount++;
+        });
+      });
+
+      baseData.updatedAt = new Date().toLocaleString('mn-MN');
+
+      statusEl.textContent = "Gist рүү бичиж байна…";
+      const patchRes = await fetch('https://api.github.com/gists/' + gistId, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'token ' + token,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          files: { [filename]: { content: JSON.stringify(baseData, null, 2) } }
+        })
+      });
+      if (!patchRes.ok) throw new Error('Gist бичихэд алдаа гарлаа (' + patchRes.status + ')');
+
+      statusEl.className = 'acct-status show ok';
+      const monthLabelsText = batches.map(b=>b.monthLabel).join(', ');
+      statusEl.textContent = `Амжилттай: ${updatedCount} мөр (${monthLabelsText}) Gist рүү шинэчлэгдлээ.` +
+        (skipped.size ? ` Тохирохгүй регистр: ${Array.from(skipped).join(', ')}` : '');
+    }catch(err){
+      console.error(err);
+      statusEl.className = 'acct-status show err';
+      if (err instanceof TypeError && /fetch/i.test(err.message)){
+        statusEl.textContent = "Сүлжээний холболт хийгдсэнгүй (Failed to fetch). Магадгүй: (1) энэ HTML файлыг компьютероосоо шууд нээсэн бол зарим браузер (ялангуяа Firefox) гадаад сервертэй холбогдохыг блоклодог — Chrome дээр туршина уу, эсвэл локал server-ээр нээнэ үү; (2) интернэт холболт тасарсан; (3) байгууллагын firewall api.github.com-ыг блоклосон.";
+      } else {
+        statusEl.textContent = "Алдаа: " + err.message;
+      }
+    }
+  }
+
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key==='Enter') attemptLogin(); });
+
+  // Хуудас ачаалмагц шууд Gist-ээс ажилтны жагсаалт/өгөгдлийг татаж бэлдэнэ
+  document.getElementById('appVersion').textContent = 'Хувилбар: ' + APP_VERSION;
+  loadDirectoryData();
+</script>
+</body>
+</html>
