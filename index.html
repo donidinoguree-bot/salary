@@ -394,7 +394,7 @@
    Ажилтны нэвтрэх нэр/нууц үг одоо энэ Gist-ийн дотор (employees.<username>.password) хадгалагдана —
    Нягтлан бодогчийн самбар дахь "Ажилтан удирдах" хэсгээр нэмэх/хасах/солих боломжтой.
    ========================================================================= */
-  const APP_VERSION = 'v2026.10.05-b (сар эрэмбэлэх засвар)';
+  const APP_VERSION = 'v2026.11.05-c (сүүл цалин)';
   const CONFIG = {
     GIST_RAW_URL: "https://gist.githubusercontent.com/donidinoguree-bot/0620f614a576dd761cb237c2e4979b0f/raw/salary_data.json",
     GIST_ID: "0620f614a576dd761cb237c2e4979b0f",
@@ -818,8 +818,17 @@
       });
     });
 
-    const sumNet = realCols.reduce((s,c)=>s+getTotalPaid(c.data),0);
-    html += `<tr class="net-row"><td>Нийт олгосон цалин</td>${flat.map(c=>`<td class="${c.isAgg?'sub-total-col':''}">${fmt(getTotalPaid(c.data))}</td>`).join('')}${withTotal?`<td>${fmt(sumNet)}</td>`:''}</tr>`;
+    // Олгосон цалин: Урьдчилгаа + Сүүл цалин (гарт олгосон үлдэгдэл) = Нийт олгосон цалин
+    const getAdvance = o => (o.deductions && o.deductions.advance) || 0;
+    const getFinal = o => o.netPay || 0;
+    const sumAdv = realCols.reduce((s,c)=>s+getAdvance(c.data),0);
+    const sumFinal = realCols.reduce((s,c)=>s+getFinal(c.data),0);
+    const sumNet = sumAdv + sumFinal;
+    const cell = (c, v) => `<td class="${c.isAgg?'sub-total-col':''}">${fmt(v)}</td>`;
+    html += `<tr class="group-sep"><td colspan="${flat.length+1+(withTotal?1:0)}">ОЛГОСОН ЦАЛИН</td></tr>`;
+    html += `<tr><td>Урьдчилгаа олгосон</td>${flat.map(c=>cell(c,getAdvance(c.data))).join('')}${withTotal?`<td>${fmt(sumAdv)}</td>`:''}</tr>`;
+    html += `<tr><td>Сүүл цалин гарт олгосон</td>${flat.map(c=>cell(c,getFinal(c.data))).join('')}${withTotal?`<td>${fmt(sumFinal)}</td>`:''}</tr>`;
+    html += `<tr class="net-row"><td>Нийт олгосон цалин</td>${flat.map(c=>cell(c,getTotalPaid(c.data))).join('')}${withTotal?`<td>${fmt(sumNet)}</td>`:''}</tr>`;
     html += `</table>`;
     return `<div class="cat-block">${html}</div>`;
   }
@@ -908,27 +917,34 @@
     const tbl = document.getElementById('totalsTable');
     if (!currentEmp || !currentEmp.months || currentEmp.months.length===0){ tbl.innerHTML=""; return; }
     const sortedMonths = sortMonthsChronologically(currentEmp.months);
-    let rows = "", sumCalc=0, sumDeduct=0, sumNet=0, sumBase=0;
+    let rows = "", sumCalc=0, sumDeduct=0, sumNet=0, sumBase=0, sumAdv=0, sumFinal=0;
     sortedMonths.forEach(m => {
       const c = m.calculation||{}, d = m.deductions||{};
+      const adv = d.advance||0;
+      const fin = m.netPay||0;
       const totalPaid = getTotalPaid(m);
       sumCalc += c.totalCalculatedPay||0; sumDeduct += d.totalDeductions||0;
+      sumAdv += adv; sumFinal += fin;
       sumNet += totalPaid; sumBase += c.workedTimePay||0;
       rows += `<tr>
         <td>${m.label}</td>
         <td>${fmt(c.workedTimePay)}</td>
         <td>${fmt(c.totalCalculatedPay)}</td>
         <td class="deduct">−${fmt(d.totalDeductions)}</td>
+        <td>${fmt(adv)}</td>
+        <td>${fmt(fin)}</td>
         <td class="net">${fmt(totalPaid)}</td>
       </tr>`;
     });
     tbl.innerHTML = `
-      <tr><th>Сар</th><th>Үндсэн цалин</th><th>Нийт бодогдсон цалин</th><th>Нийт суутгал</th><th>Нийт олгосон цалин</th></tr>
+      <tr><th>Сар</th><th>Үндсэн цалин</th><th>Нийт бодогдсон цалин</th><th>Нийт суутгал</th><th>Урьдчилгаа олгосон</th><th>Сүүл цалин гарт олгосон</th><th>Нийт олгосон цалин</th></tr>
       ${rows}
       <tr class="grand">
         <td>Нийт (${currentEmp.months.length} сар)</td>
         <td>${fmt(sumBase)}</td><td>${fmt(sumCalc)}</td>
-        <td class="deduct">−${fmt(sumDeduct)}</td><td class="net">${fmt(sumNet)}</td>
+        <td class="deduct">−${fmt(sumDeduct)}</td>
+        <td>${fmt(sumAdv)}</td><td>${fmt(sumFinal)}</td>
+        <td class="net">${fmt(sumNet)}</td>
       </tr>
     `;
   }
